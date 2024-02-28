@@ -1,16 +1,16 @@
-import { useFetch } from "@raycast/utils";
+import { useCachedPromise } from "@raycast/utils";
 import { useMemo } from "react";
-import { ApiHeaders, ApiUrls } from "../api/helpers";
-import { ListObject } from "../types/list";
-import { ApiResponse } from "../types/utils";
+
+import { getList } from "@/api/list";
+import { ListObject } from "@/types/list";
+import { CachedPromiseOptionsType } from "@/types/utils";
 
 type Props = {
-  options?: Parameters<typeof useFetch<ApiResponse<ListObject[]>>>[1];
+  options?: CachedPromiseOptionsType<Awaited<ReturnType<typeof getList>>>;
 };
 
 export default function useLists({ options }: Props = {}) {
-  const { data, error, isLoading, mutate } = useFetch<ApiResponse<ListObject[]>>(ApiUrls.lists, {
-    headers: ApiHeaders,
+  const { data, error, isLoading, mutate } = useCachedPromise(getList, [], {
     ...options,
   });
 

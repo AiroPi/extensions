@@ -1,27 +1,43 @@
-import { useCallback, useEffect, useState } from "react";
-import { getIPGeolocation, getIPV4Address, getIPV6Address, isEmpty } from "../utils/common-utils";
-import { Cache, showToast, Toast } from "@raycast/api";
-import { CacheKey, IPGeolocation, IPGeolocationReadable } from "../types/ip-geolocation";
-import Style = Toast.Style;
+import { Cache, showToast, Toast, updateCommandMetadata } from "@raycast/api";
 import axios from "axios";
-import { WORLD_TIME_API } from "../utils/constants";
 import { publicIpv4, publicIpv6 } from "public-ip";
+import { useCallback, useEffect, useState } from "react";
+import { CacheKey, IPGeolocation, IPGeolocationReadable } from "../types/ip-geolocation";
+import { getIPGeolocation, getIPV4Address, getIPV6Address, isEmpty } from "../utils/common-utils";
+import { WORLD_TIME_API } from "../utils/constants";
+import Style = Toast.Style;
+import net from "net";
 
-export const searchIpGeolocation = (language: string, searchContent: string) => {
+export const searchIpGeolocation = (
+  language: string,
+  searchContent: string,
+  coordinatesFormat: "latLon" | "lonLat"
+) => {
   const [ipGeolocation, setIpGeolocation] = useState<[string, string][]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
   const fetchData = useCallback(async () => {
     setIpGeolocation([]);
-    if (isEmpty(searchContent) || !searchContent.includes(".")) {
+    if (isEmpty(searchContent) || (!searchContent.includes(".") && !searchContent.includes(":"))) {
       setLoading(false);
       return;
+    }
+    if (
+      ((searchContent.match(/\./g) || []).length === 3 && /^[0-9.]*$/.test(searchContent)) ||
+      (searchContent.includes(":") && (searchContent.match(/:/g) || []).length >= 2)
+    ) {
+      if (!net.isIP(searchContent)) {
+        setLoading(false);
+        return;
+      }
     }
     setLoading(true);
     if (searchContent.startsWith("https://") || searchContent.startsWith("http://")) {
       searchContent = searchContent.replace("https://", "").replace("http://", "");
     }
-
+    if (searchContent.includes("/")) {
+      searchContent = searchContent.split("/")[0];
+    }
     getIPGeolocation(searchContent, language)
       .then((ipGeolocation: IPGeolocation) => {
         if (ipGeolocation.status === "success") {
@@ -30,13 +46,16 @@ export const searchIpGeolocation = (language: string, searchContent: string) => 
             Location: `${ipGeolocation.country}, ${ipGeolocation.regionName}, ${ipGeolocation.city}${
               isEmpty(ipGeolocation.district) ? "" : ", " + ipGeolocation.district
             }${isEmpty(ipGeolocation.zip) ? "" : ", ZIP: " + ipGeolocation.zip}`, //country  regionName city districtGeoCoordinates: `${ipGeolocation.lon} , ${ipGeolocation.lat}`, //(lon,lat)
-            GeoCoordinates: `${ipGeolocation.lon} , ${ipGeolocation.lat}`, ////(lon,lat)
+            GeoCoordinates:
+              coordinatesFormat === "latLon"
+                ? `${ipGeolocation.lat} , ${ipGeolocation.lon}` ////(lat,lon)
+                : `${ipGeolocation.lon} , ${ipGeolocation.lat}`, ////(lon,lat)
             Timezone: ipGeolocation.timezone,
             AS: ipGeolocation.as.substring(0, ipGeolocation.as.indexOf(" ")),
             ISP: ipGeolocation.isp,
             Organization: ipGeolocation.org,
           };
-
+          updateCommandMetadata({ subtitle: `Last Query ${ipGeolocation.query}` });
           axios({
             method: "GET",
             url: WORLD_TIME_API + ipGeolocationReadable.Timezone,
@@ -71,7 +90,7 @@ export const searchIpGeolocation = (language: string, searchContent: string) => 
   return { ipGeolocation: ipGeolocation, loading: loading };
 };
 
-export const searchMyIpGeolocation = (language: string, showIPv6: boolean) => {
+export const searchMyIpGeolocation = (language: string, showIPv6: boolean, coordinatesFormat: "latLon" | "lonLat") => {
   const [ipGeolocation, setIpGeolocation] = useState<[string, string][]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -112,7 +131,10 @@ export const searchMyIpGeolocation = (language: string, showIPv6: boolean) => {
               Location: `${ipGeolocation.country}, ${ipGeolocation.regionName}, ${ipGeolocation.city}${
                 isEmpty(ipGeolocation.district) ? "" : ", " + ipGeolocation.district
               }${isEmpty(ipGeolocation.zip) ? "" : ", ZIP: " + ipGeolocation.zip}`, //country  regionName city districtGeoCoordinates: `${ipGeolocation.lon} , ${ipGeolocation.lat}`, //(lon,lat)
-              GeoCoordinates: `${ipGeolocation.lon} , ${ipGeolocation.lat}`, ////(lon,lat)
+              GeoCoordinates:
+                coordinatesFormat === "latLon"
+                  ? `${ipGeolocation.lat} , ${ipGeolocation.lon}` ////(lat,lon)
+                  : `${ipGeolocation.lon} , ${ipGeolocation.lat}`, ////(lon,lat)
               Timezone: ipGeolocation.timezone,
               AS: ipGeolocation.as.substring(0, ipGeolocation.as.indexOf(" ")),
               ISP: ipGeolocation.isp,
@@ -160,6 +182,8 @@ export const searchMyIpGeolocation = (language: string, showIPv6: boolean) => {
           setLoading(false);
           showToast(Style.Failure, String(error));
         });
+
+      await updateCommandMetadata({ subtitle: `Public IP ${myPublicIpv4}` });
     } catch (e) {
       console.error(String(e));
       setLoading(false);

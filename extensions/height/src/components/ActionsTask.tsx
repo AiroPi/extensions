@@ -12,35 +12,51 @@ import {
   Toast,
   useNavigation,
 } from "@raycast/api";
-import { MutatePromise } from "@raycast/utils";
-import { ApiTask } from "../api/task";
-import useFieldTemplates from "../hooks/useFieldTemplates";
-import useLists from "../hooks/useLists";
-import useTasks from "../hooks/useTasks";
-import useUsers from "../hooks/useUsers";
-import { TaskObject } from "../types/task";
-import { ApiResponse } from "../types/utils";
-import { getTintColorFromHue, ListColors } from "../utils/list";
-import { getIconByStatusState, getPriorityIcon } from "../utils/task";
-import DetailsTask from "./DetailsTask";
-import UpdateTask from "./UpdateTask";
+
+import { batchUpdateTask, getTask, updateTask } from "@/api/task";
+import DetailsTask from "@/components/DetailsTask";
+import UpdateTask from "@/components/UpdateTask";
+import { FieldTemplateObject, Label } from "@/types/fieldTemplate";
+import { ListObject } from "@/types/list";
+import { TaskObject } from "@/types/task";
+import { UserObject } from "@/types/user";
+import { CachedPromiseMutateType } from "@/types/utils";
+import { WorkspaceObject } from "@/types/workspace";
+import { isHeightInstalled } from "@/utils/application";
+import { getTintColorFromHue, ListColors } from "@/utils/list";
+import { getIconByStatusState, getPriorityIcon } from "@/utils/task";
 
 type Props = {
   task: TaskObject;
-  mutateTask: MutatePromise<ApiResponse<TaskObject[]> | undefined>;
+  mutateTask: CachedPromiseMutateType<typeof getTask>;
+  fieldTemplatesStatuses?: Label[];
+  fieldTemplatesPriorities?: Label[];
+  fieldTemplatesPrioritiesObj?: FieldTemplateObject;
+  fieldTemplatesDueDate?: FieldTemplateObject;
+  lists?: ListObject[];
+  tasks?: TaskObject[];
+  users?: UserObject[];
+  workspace?: WorkspaceObject;
   detailsTaskRevalidate?: () => void;
   detailsPage?: boolean;
 };
 
-export default function ActionsTask({ task, mutateTask, detailsPage, detailsTaskRevalidate }: Props) {
+export default function ActionsTask({
+  task,
+  mutateTask,
+  fieldTemplatesStatuses,
+  fieldTemplatesPriorities,
+  fieldTemplatesPrioritiesObj,
+  fieldTemplatesDueDate,
+  lists,
+  tasks,
+  users,
+  workspace,
+  detailsPage,
+  detailsTaskRevalidate,
+}: Props) {
   const { push } = useNavigation();
-  const { theme } = environment;
-
-  const { fieldTemplatesStatuses, fieldTemplatesPrioritiesObj, fieldTemplatesPriorities, fieldTemplatesDueDate } =
-    useFieldTemplates();
-  const { lists } = useLists();
-  const { tasks } = useTasks();
-  const { users } = useUsers();
+  const { appearance } = environment;
 
   return (
     <ActionPanel>
@@ -52,7 +68,16 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
             onAction={() => push(<DetailsTask taskId={task.id} mutateTask={mutateTask} />)}
           />
         )}
-        <Action.OpenInBrowser title="Open Task in Browser" icon={Icon.Globe} url={task.url} />
+        {isHeightInstalled ? (
+          <Action.Open
+            title="Open Task in Height App"
+            icon={"height-app.png"}
+            target={`${workspace?.url?.replace("https", "height")}/${task.url.split("/").at(-1)}`}
+            application="Height"
+          />
+        ) : (
+          <Action.OpenInBrowser title="Open Task in Browser" icon={Icon.Globe} url={task.url} />
+        )}
       </ActionPanel.Section>
       <ActionPanel.Section>
         <Action
@@ -74,7 +99,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
                 mutateTask={mutateTask}
                 detailsPage={detailsPage}
                 detailsTaskRevalidate={detailsTaskRevalidate}
-              />
+              />,
             )
           }
         />
@@ -95,7 +120,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
                 title: "Unsetting assignee",
               });
               try {
-                await mutateTask(ApiTask.update(task.id, { assigneesIds: [] }));
+                await mutateTask(updateTask(task.id, { assigneesIds: [] }));
                 if (detailsPage && detailsTaskRevalidate) detailsTaskRevalidate();
 
                 toast.style = Toast.Style.Success;
@@ -116,7 +141,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
                 tintColor: user?.pictureUrl
                   ? undefined
                   : `hsl(${user?.hue ?? "0"}, 80%, ${
-                      typeof user?.hue === "number" ? "60%" : theme === "dark" ? "100%" : "0"
+                      typeof user?.hue === "number" ? "60%" : appearance === "dark" ? "100%" : "0"
                     })`,
               }}
               onAction={async () => {
@@ -125,7 +150,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
                   title: "Setting assignee",
                 });
                 try {
-                  await mutateTask(ApiTask.update(task.id, { assigneesIds: [user.id] }));
+                  await mutateTask(updateTask(task.id, { assigneesIds: [user.id] }));
                   if (detailsPage && detailsTaskRevalidate) detailsTaskRevalidate();
 
                   toast.style = Toast.Style.Success;
@@ -147,7 +172,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
               icon={{
                 source: getIconByStatusState(status.id, fieldTemplatesStatuses),
                 tintColor: `hsl(${status?.hue ?? "0"}, 80%, ${
-                  typeof status?.hue === "number" ? "60%" : theme === "dark" ? "100%" : "0"
+                  typeof status?.hue === "number" ? "60%" : appearance === "dark" ? "100%" : "0"
                 })`,
               }}
               onAction={async () => {
@@ -156,7 +181,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
                   title: "Setting status",
                 });
                 try {
-                  await mutateTask(ApiTask.update(task.id, { status: status.id }));
+                  await mutateTask(updateTask(task.id, { status: status.id }));
                   if (detailsPage && detailsTaskRevalidate) detailsTaskRevalidate();
 
                   toast.style = Toast.Style.Success;
@@ -189,7 +214,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
 
               try {
                 await mutateTask(
-                  ApiTask.batchUpdate({
+                  batchUpdateTask({
                     patches: [
                       {
                         taskIds: [task.id],
@@ -204,7 +229,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
                         ],
                       },
                     ],
-                  })
+                  }),
                 );
                 if (detailsPage && detailsTaskRevalidate) detailsTaskRevalidate();
 
@@ -224,7 +249,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
               icon={{
                 source: getPriorityIcon(priority.value),
                 tintColor: `hsl(${priority?.hue ?? "0"}, 80%, ${
-                  typeof priority?.hue === "number" ? "60%" : theme === "dark" ? "100%" : "0"
+                  typeof priority?.hue === "number" ? "60%" : appearance === "dark" ? "100%" : "0"
                 })`,
               }}
               onAction={async () => {
@@ -235,7 +260,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
 
                 try {
                   await mutateTask(
-                    ApiTask.batchUpdate({
+                    batchUpdateTask({
                       patches: [
                         {
                           taskIds: [task.id],
@@ -252,7 +277,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
                           ],
                         },
                       ],
-                    })
+                    }),
                   );
                   if (detailsPage && detailsTaskRevalidate) detailsTaskRevalidate();
 
@@ -279,7 +304,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
 
             try {
               await mutateTask(
-                ApiTask.batchUpdate({
+                batchUpdateTask({
                   patches: [
                     {
                       taskIds: [task.id],
@@ -294,7 +319,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
                       ],
                     },
                   ],
-                })
+                }),
               );
               if (detailsPage && detailsTaskRevalidate) detailsTaskRevalidate();
 
@@ -324,7 +349,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
                 title: "Unsetting parent task",
               });
               try {
-                await mutateTask(ApiTask.update(task.id, { parentTaskId: null }));
+                await mutateTask(updateTask(task.id, { parentTaskId: null }));
                 if (detailsPage && detailsTaskRevalidate) detailsTaskRevalidate();
 
                 toast.style = Toast.Style.Success;
@@ -339,14 +364,14 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
           {tasks
             ?.filter(
               (filteredParentTask) =>
-                filteredParentTask.listIds.some((id) => task.listIds.includes(id)) && filteredParentTask.id !== task.id
+                filteredParentTask.listIds.some((id) => task.listIds.includes(id)) && filteredParentTask.id !== task.id,
             )
             ?.map((parentTask) => (
               <Action
                 key={parentTask.id}
                 title={parentTask.name}
                 icon={{
-                  source: parentTask.lists?.[0].appearance?.iconUrl ?? "list-icons/list-light.svg",
+                  source: parentTask.lists?.[0].appearance?.iconUrl ?? "list-icons/list.svg",
                   tintColor: getTintColorFromHue(parentTask.lists?.[0]?.appearance?.hue, ListColors),
                 }}
                 onAction={async () => {
@@ -355,7 +380,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
                     title: "Setting parent task",
                   });
                   try {
-                    await mutateTask(ApiTask.update(task.id, { parentTaskId: parentTask.id }));
+                    await mutateTask(updateTask(task.id, { parentTaskId: parentTask.id }));
                     if (detailsPage && detailsTaskRevalidate) detailsTaskRevalidate();
 
                     toast.style = Toast.Style.Success;
@@ -381,7 +406,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
                 key={list.id}
                 title={list.name}
                 icon={{
-                  source: list.appearance?.iconUrl ?? "list-icons/list-light.svg",
+                  source: list.appearance?.iconUrl ?? "list-icons/list.svg",
                   tintColor: getTintColorFromHue(list?.appearance?.hue, ListColors),
                 }}
                 onAction={async () => {
@@ -390,7 +415,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
                     title: "Moving task to list",
                   });
                   try {
-                    await mutateTask(ApiTask.update(task.id, { listIds: [list.id] }));
+                    await mutateTask(updateTask(task.id, { listIds: [list.id] }));
                     if (detailsPage && detailsTaskRevalidate) detailsTaskRevalidate();
 
                     toast.style = Toast.Style.Success;
@@ -423,7 +448,7 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
                 onAction: async () => {
                   const toast = await showToast({ style: Toast.Style.Animated, title: "Deleting task" });
                   try {
-                    await mutateTask(ApiTask.update(task.id, { deleted: true }));
+                    await mutateTask(updateTask(task.id, { deleted: true }));
                     if (detailsPage && detailsTaskRevalidate) detailsTaskRevalidate();
 
                     toast.style = Toast.Style.Success;
@@ -453,10 +478,10 @@ export default function ActionsTask({ task, mutateTask, detailsPage, detailsTask
           content={task.name}
         />
         <Action.CopyToClipboard
-          title="Copy Task ID With Name"
+          title="Copy Task Name With ID"
           shortcut={{ modifiers: ["cmd", "shift"], key: "." }}
           icon={Icon.CopyClipboard}
-          content={`${task.url.split("/").at(-1) ?? ""} ${task.name}`}
+          content={`${task.name} ${task.url.split("/").at(-1) ?? ""}`}
         />
         <Action.CopyToClipboard
           title="Copy Task URL"

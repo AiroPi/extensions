@@ -1,14 +1,14 @@
-import { useFetch } from "@raycast/utils";
-import { ApiHeaders, ApiUrls } from "../api/helpers";
-import { UserObject } from "../types/user";
+import { useCachedPromise } from "@raycast/utils";
+
+import { getMe } from "@/api/user";
+import { CachedPromiseOptionsType } from "@/types/utils";
 
 type Props = {
-  options?: Parameters<typeof useFetch<UserObject>>[1];
+  options?: CachedPromiseOptionsType<Awaited<ReturnType<typeof getMe>>>;
 };
 
 export default function useMe({ options }: Props = {}) {
-  const { data, error, isLoading, mutate } = useFetch<UserObject>(ApiUrls.me, {
-    headers: ApiHeaders,
+  const { data, error, isLoading, mutate } = useCachedPromise(getMe, [], {
     ...options,
   });
 

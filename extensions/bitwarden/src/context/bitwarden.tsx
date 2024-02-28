@@ -1,31 +1,32 @@
-import { Detail } from "@raycast/api";
 import { createContext, PropsWithChildren, useContext, useEffect, useState } from "react";
 import { Bitwarden } from "~/api/bitwarden";
+import { LoadingFallback } from "~/components/LoadingFallback";
 
 const BitwardenContext = createContext<Bitwarden | null>(null);
 
-export type BitwardenProviderProps = PropsWithChildren;
+export type BitwardenProviderProps = PropsWithChildren<{
+  loadingFallback?: JSX.Element;
+}>;
 
-export const BitwardenProvider = (props: BitwardenProviderProps) => {
-  const { children } = props;
+export const BitwardenProvider = ({ children, loadingFallback = <LoadingFallback /> }: BitwardenProviderProps) => {
   const [bitwarden, setBitwarden] = useState<Bitwarden>();
 
   useEffect(() => {
-    new Bitwarden().initialize().then(setBitwarden);
+    void new Bitwarden().initialize().then(setBitwarden);
   }, []);
 
-  if (!bitwarden) return <Detail isLoading />;
+  if (!bitwarden) return loadingFallback;
 
   return <BitwardenContext.Provider value={bitwarden}>{children}</BitwardenContext.Provider>;
 };
 
 export const useBitwarden = () => {
-  const session = useContext(BitwardenContext);
-  if (session == null) {
+  const context = useContext(BitwardenContext);
+  if (context == null) {
     throw new Error("useBitwarden must be used within a BitwardenProvider");
   }
 
-  return session;
+  return context;
 };
 
 export default BitwardenContext;

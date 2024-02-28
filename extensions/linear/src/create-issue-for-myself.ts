@@ -1,26 +1,16 @@
 import { LinearClient } from "@linear/sdk";
 import { Clipboard, closeMainWindow, getPreferenceValues, open, Toast, showToast } from "@raycast/api";
-import { authorize, oauthClient } from "./api/oauth";
+import { linear } from "./api/linearClient";
+import { getAccessToken, withAccessToken } from "@raycast/utils";
 
-type Arguments = {
-  title: string;
-  description?: string;
-};
-
-type Preferences = {
-  preferredTeamKey?: string;
-  shouldCloseMainWindow: boolean;
-};
-
-const command = async (props: { arguments: Arguments }) => {
+const command = async (props: { arguments: Arguments.CreateIssueForMyself }) => {
   const toast = await showToast({ style: Toast.Style.Animated, title: "Creating issue" });
 
   try {
-    const tokens = await oauthClient.getTokens();
-    const accessToken = tokens?.accessToken || (await authorize());
-    const linearClient = new LinearClient({ accessToken });
+    const { token } = getAccessToken();
+    const linearClient = new LinearClient({ accessToken: token });
 
-    const preferences: Preferences = getPreferenceValues();
+    const preferences = getPreferenceValues<Preferences.CreateIssueForMyself>();
 
     if (preferences.shouldCloseMainWindow) {
       await closeMainWindow();
@@ -76,4 +66,4 @@ const command = async (props: { arguments: Arguments }) => {
   }
 };
 
-export default command;
+export default withAccessToken(linear)(command);

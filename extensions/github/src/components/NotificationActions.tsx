@@ -2,9 +2,9 @@ import { Action, ActionPanel, Icon, showToast, open, Toast, launchCommand, Launc
 import { MutatePromise } from "@raycast/utils";
 import { useMemo } from "react";
 
+import { getGitHubClient } from "../api/githubClient";
 import { getErrorMessage } from "../helpers/errors";
 import { getNotificationSubtitle, getNotificationTypeTitle, getGitHubURL } from "../helpers/notifications";
-import { getGitHubClient } from "../helpers/withGithubClient";
 import { NotificationsResponse } from "../notifications";
 
 export type Notification = NotificationsResponse["data"][0];
@@ -44,7 +44,8 @@ export default function NotificationActions({ notification, userId, mutateList }
   async function openNotificationAndMarkAsRead() {
     try {
       await open(url);
-      await markNotificationAsRead();
+      await octokit.rest.activity.markThreadAsRead({ thread_id: parseInt(notification.id) });
+      await mutateList();
     } catch (error) {
       await showToast({
         style: Toast.Style.Failure,
@@ -139,7 +140,7 @@ export default function NotificationActions({ notification, userId, mutateList }
 
         <Action.CopyToClipboard
           content={notification.subject.title}
-          title={`Copy ${notification.subject.type} Title`}
+          title={`Copy ${getNotificationTypeTitle(notification)} Title`}
           shortcut={{ modifiers: ["cmd", "shift"], key: "," }}
         />
       </ActionPanel.Section>

@@ -1,11 +1,13 @@
 # Logitech Litra extension for Raycast
 
-This [Raycast](https://www.raycast.com/) extension allows you to manage your Logitech Litra Glow and/or Logitech Litra Beam light(s) from Raycast, turning them on and off and setting their brightness and temperature.
+This [Raycast](https://www.raycast.com/) extension allows you to manage your USB-connected Logitech Litra Glow and/or Logitech Litra Beam light(s) from Raycast, turning them on and off and setting their brightness and temperature.
 
 ![Screenshot](screenshot.png?raw=true)
 
+*Note*: This will not work with Logitech Litra Beam devices connected using Bluetooth.
+
 ## Installation
 
-To use this extension, as well as downloading the extension from the Raycast Store, you must also set up [Node.js](https://nodejs.org/en/) and [`npm`](https://www.npmjs.com/), and then install the `litra` npm package globally by running `npm install -g litra`.
+To use this extension, as well as downloading the extension from the Raycast Store, you must also set up the [`litra` command line](https://github.com/timrogers/litra-rs) on your machine by following the instructions in the readme. You must be running at least `v0.2.0` of `litra`.
 
-When you run the extension for the first time, you'll be prompted to provide the directory where the `litra` package's CLI is installed. You can get this by running `dirname $(which litra-on)` from a terminal.
+When you run the extension for the first time, you'll be prompted to configure the path of your `litra` binary. You can get this after installation by running `which litra` in a shell.

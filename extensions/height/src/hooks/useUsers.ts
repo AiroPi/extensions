@@ -1,23 +1,22 @@
-import { useFetch } from "@raycast/utils";
+import { useCachedPromise } from "@raycast/utils";
 import { useMemo } from "react";
-import { ApiHeaders, ApiUrls } from "../api/helpers";
-import { UserObject } from "../types/user";
-import { ApiResponse } from "../types/utils";
+
+import { getUser } from "@/api/user";
+import { CachedPromiseOptionsType } from "@/types/utils";
 
 type Props = {
-  options?: Parameters<typeof useFetch<ApiResponse<UserObject[]>>>[1];
+  options?: CachedPromiseOptionsType<Awaited<ReturnType<typeof getUser>>>;
 };
 
 export default function useUsers({ options }: Props = {}) {
-  const { data, error, isLoading, mutate } = useFetch<ApiResponse<UserObject[]>>(ApiUrls.users, {
-    headers: ApiHeaders,
+  const { data, error, isLoading, mutate } = useCachedPromise(getUser, [], {
     ...options,
   });
 
   const { users, bots } = useMemo(() => {
-    const users = data?.list?.filter((user) => !user.deleted && !user?.botType);
+    const users = data?.list?.filter((user) => !user?.deleted && !user?.botType);
 
-    const bots = data?.list?.filter((user) => !user.deleted && Boolean(user?.botType));
+    const bots = data?.list?.filter((user) => !user?.deleted && Boolean(user?.botType));
 
     return { users, bots };
   }, [data]);

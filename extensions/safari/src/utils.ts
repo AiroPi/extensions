@@ -74,14 +74,14 @@ export const getTitle = (tab: Tab) => _.truncate(tab.title, { length: 75 });
 export const plural = (count: number, string: string) => `${count} ${string}${count > 1 ? "s" : ""}`;
 
 const normalizeText = (text: string) =>
-  text
+  (text || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
 export const search = (collection: object[], keys: string[], searchText: string) =>
   _.filter(collection, (item) =>
-    _.some(keys, (key) => normalizeText(_.get(item, key)).includes(normalizeText(searchText)))
+    _.some(keys, (key) => normalizeText(_.get(item, key)).includes(normalizeText(searchText))),
   );
 
 const dtf = new Intl.DateTimeFormat(undefined, {

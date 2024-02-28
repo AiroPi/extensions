@@ -1,5 +1,10 @@
-import SearchLists from "./components/SearchLists";
+import SearchLists from "@/components/SearchLists";
+import View from "@/components/View";
 
 export default function Command() {
-  return <SearchLists />;
+  return (
+    <View>
+      <SearchLists />
+    </View>
+  );
 }

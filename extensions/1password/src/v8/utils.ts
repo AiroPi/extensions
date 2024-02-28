@@ -4,21 +4,51 @@ import { execFileSync } from "child_process";
 import { existsSync } from "fs";
 import { useEffect, useState } from "react";
 
-import { CategoryName } from "./types";
+import { CategoryName, Item } from "./types";
 
-export type Preferences = {
-  cliPath: string;
-  version: "v7" | "v8";
-};
+export type ActionID = Preferences["primaryAction"];
 
 export const cache = new Cache();
 
+const preferences = getPreferenceValues<Preferences>();
+
 export const CLI_PATH =
-  getPreferenceValues<Preferences>().cliPath ||
-  ["/usr/local/bin/op", "/opt/homebrew/bin/op"].find((path) => existsSync(path));
+  preferences.cliPath || ["/usr/local/bin/op", "/opt/homebrew/bin/op"].find((path) => existsSync(path));
 export const CATEGORIES_CACHE_NAME = "@categories";
 export const ITEMS_CACHE_NAME = "@items";
 export const ACCOUNT_CACHE_NAME = "@account";
+
+export function hrefToOpenInBrowser(item: Item): string | undefined {
+  if (item.category === "LOGIN") {
+    return item.urls?.find((url) => url.primary)?.href;
+  } else {
+    return undefined;
+  }
+}
+
+export function actionsForItem(item: Item): ActionID[] {
+  // all actions in the default order
+  const defaultActions: ActionID[] = [
+    "open-in-1password",
+    "open-in-browser",
+    "copy-username",
+    "copy-password",
+    "copy-one-time-password",
+  ];
+  // prioritize primary and secondary actions, then append the rest and remove duplicates
+  const deduplicatedActions = [
+    ...new Set<ActionID>([preferences.primaryAction, preferences.secondaryAction, ...defaultActions]),
+  ];
+
+  switch (item.category) {
+    case "LOGIN":
+      return deduplicatedActions;
+    case "PASSWORD":
+      return deduplicatedActions.filter((action) => action !== "copy-username");
+    default:
+      return ["open-in-1password"];
+  }
+}
 
 export function op(args: string[]) {
   if (CLI_PATH) {
@@ -28,30 +58,50 @@ export function op(args: string[]) {
   throw Error("1Password CLI is not found!");
 }
 
+const CACHE_TIMEOUTS: { [key: string]: number } = {
+  [CATEGORIES_CACHE_NAME]: 1000 * 60 * 10,
+  [ITEMS_CACHE_NAME]: 1000 * 60 * 10,
+  [ACCOUNT_CACHE_NAME]: 1000 * 60 * 10,
+};
+
+const DEFAULT_CACHE_TIMEOUT = 1000 * 60 * 10;
+
 export function useOp<T>(args: string[], cacheKey?: string) {
   const [data, setData] = useState<T>();
   const [error, setError] = useState<unknown>();
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const lastUpdatedKey = `${cacheKey}_lastUpdated`;
 
   useEffect(() => {
-    if (cacheKey && cache.has(cacheKey)) {
-      setIsLoading(false);
-      return setData(JSON.parse(cache.get(cacheKey) as string));
-    }
-
-    try {
-      const items = op([...args, "--format=json"]);
-
-      if (cacheKey) {
-        cache.set(cacheKey, items);
-        return setData(JSON.parse(cache.get(cacheKey) as string));
+    const fetchData = async () => {
+      try {
+        const items = op([...args, "--format=json"]);
+        if (cacheKey) {
+          cache.set(cacheKey, items);
+          cache.set(lastUpdatedKey, Date.now().toString());
+        }
+        setData(JSON.parse(items));
+      } catch (error: unknown) {
+        setError(error);
+      } finally {
+        setIsLoading(false);
       }
-      return setData(JSON.parse(items));
-    } catch (error: unknown) {
-      setError(error);
-    } finally {
-      setIsLoading(false);
+    };
+
+    if (cacheKey && cache.has(cacheKey) && cache.has(lastUpdatedKey)) {
+      const lastUpdatedString = cache.get(lastUpdatedKey) as string;
+      const lastUpdated = parseInt(lastUpdatedString, 10);
+      const timeSinceLastUpdate = Date.now() - lastUpdated;
+      const cacheTimeout = CACHE_TIMEOUTS[cacheKey] || DEFAULT_CACHE_TIMEOUT;
+
+      if (timeSinceLastUpdate < cacheTimeout) {
+        const cachedData = cache.get(cacheKey) as string;
+        setIsLoading(false);
+        return setData(JSON.parse(cachedData));
+      }
     }
+
+    fetchData();
   }, [cacheKey]);
 
   return { data, error, isLoading };

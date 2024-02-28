@@ -1,15 +1,12 @@
-import { getVPNStatusByName } from "./getVPN";
-import { runScriptSilently, SHELL_PATH } from "./utils";
+import { VPN } from "./type";
+import { CMD_PATH, runScript } from "./utils";
 
-export default async (VPNName: string) => {
-  const CONNECT_VPN = `${SHELL_PATH}scutil --nc start ${VPNName}`;
-  const DISCONNECT_VPN = `${SHELL_PATH}scutil --nc stop ${VPNName}`;
-
-  const isConnected = await getVPNStatusByName(VPNName);
-  if (isConnected) {
-    await runScriptSilently(DISCONNECT_VPN);
+export default async (VPN: VPN) => {
+  const sn = VPN.sn;
+  if (VPN.isConnected) {
+    await disconnectVPNBySN(sn, true);
   } else {
-    await runScriptSilently(CONNECT_VPN);
+    await connectVPNBySN(sn, true);
   }
 
   /*
@@ -24,3 +21,15 @@ export default async (VPNName: string) => {
     }, 1000);
     */
 };
+
+export async function disconnectVPNBySN(sn: string, isSilently = false) {
+  // const ConvertedName = VPNName?.replace(/"/g, '\\"')?.replace(/`/g, "\\`");
+  const DISCONNECT_VPN = `${CMD_PATH} --nc stop "${sn}"`;
+  await runScript(DISCONNECT_VPN, isSilently);
+}
+
+export async function connectVPNBySN(sn: string, isSilently = false) {
+  // const ConvertedName = VPNName?.replace(/"/g, '\\"')?.replace(/`/g, "\\`");
+  const CONNECT_VPN = `${CMD_PATH} --nc start "${sn}"`;
+  await runScript(CONNECT_VPN, isSilently);
+}

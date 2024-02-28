@@ -1,19 +1,22 @@
 import { Color, Detail, environment, Icon } from "@raycast/api";
-import { MutatePromise } from "@raycast/utils";
 import { differenceInCalendarDays, format } from "date-fns";
-import useFieldTemplates from "../hooks/useFieldTemplates";
-import useLists from "../hooks/useLists";
-import useTask from "../hooks/useTask";
-import useUsers from "../hooks/useUsers";
-import { TaskObject } from "../types/task";
-import { ApiResponse } from "../types/utils";
-import { getListById, getTintColorFromHue, ListColors } from "../utils/list";
-import { getAssigneeById, getIconByStatusState, getPriorityIcon, getStatusById } from "../utils/task";
-import ActionsTask from "./ActionsTask";
+
+import { getTask } from "@/api/task";
+import ActionsTask from "@/components/ActionsTask";
+import useFieldTemplates from "@/hooks/useFieldTemplates";
+import useLists from "@/hooks/useLists";
+import useTask from "@/hooks/useTask";
+import useTasks from "@/hooks/useTasks";
+import useUsers from "@/hooks/useUsers";
+import useWorkspace from "@/hooks/useWorkspace";
+import { TaskObject } from "@/types/task";
+import { CachedPromiseMutateType } from "@/types/utils";
+import { getListById, getTintColorFromHue, ListColors } from "@/utils/list";
+import { getAssigneeById, getIconByStatusState, getPriorityIcon, getStatusById } from "@/utils/task";
 
 type Props = {
   taskId: string;
-  mutateTask: MutatePromise<ApiResponse<TaskObject[]> | undefined>;
+  mutateTask: CachedPromiseMutateType<typeof getTask>;
 };
 
 const markdown = (task: TaskObject | undefined) => `
@@ -23,27 +26,57 @@ ${task?.description}
 `;
 
 export default function DetailsTask({ taskId, mutateTask }: Props) {
-  const { theme } = environment;
-  const { fieldTemplatesStatuses, fieldTemplatesIsLoading } = useFieldTemplates();
-  const { task, taskIsLoading, taskRevalidate } = useTask(taskId);
+  const { appearance } = environment;
+  const {
+    fieldTemplatesStatuses,
+    fieldTemplatesPrioritiesObj,
+    fieldTemplatesPriorities,
+    fieldTemplatesDueDate,
+    fieldTemplatesIsLoading,
+  } = useFieldTemplates();
+  const { tasks, tasksIsLoading } = useTasks();
+  const { task, taskIsLoading, taskRevalidate } = useTask({ taskId });
   const { lists, smartLists, listsIsLoading } = useLists();
   const { users, usersIsLoading } = useUsers();
+  const { workspaceData, workspaceIsLoading } = useWorkspace();
 
   const status = getStatusById(task?.status, fieldTemplatesStatuses);
 
-  const priority = task?.fields.find((field) => field?.name?.toLowerCase() === "priority");
+  const priority = task?.fields?.find((field) => field?.name?.toLowerCase() === "priority");
 
   const today = new Date();
-  const dueDate = task?.fields.find((field) => field?.name?.toLowerCase() === "due date");
+  const dueDate = task?.fields?.find((field) => field?.name?.toLowerCase() === "due date");
 
   if (!task) return <Detail />;
 
   return (
     <Detail
-      isLoading={taskIsLoading || fieldTemplatesIsLoading || listsIsLoading || usersIsLoading}
+      isLoading={
+        taskIsLoading ||
+        tasksIsLoading ||
+        fieldTemplatesIsLoading ||
+        listsIsLoading ||
+        usersIsLoading ||
+        workspaceIsLoading
+      }
       markdown={markdown(task)}
       navigationTitle={task?.name}
-      actions={<ActionsTask mutateTask={mutateTask} task={task} detailsTaskRevalidate={taskRevalidate} detailsPage />}
+      actions={
+        <ActionsTask
+          task={task}
+          mutateTask={mutateTask}
+          fieldTemplatesStatuses={fieldTemplatesStatuses}
+          fieldTemplatesPriorities={fieldTemplatesPriorities}
+          fieldTemplatesPrioritiesObj={fieldTemplatesPrioritiesObj}
+          fieldTemplatesDueDate={fieldTemplatesDueDate}
+          lists={lists}
+          tasks={tasks}
+          users={users}
+          workspace={workspaceData}
+          detailsTaskRevalidate={taskRevalidate}
+          detailsPage
+        />
+      }
       metadata={
         <Detail.Metadata>
           <Detail.Metadata.Label
@@ -52,7 +85,7 @@ export default function DetailsTask({ taskId, mutateTask }: Props) {
             icon={{
               source: getIconByStatusState(task?.status, fieldTemplatesStatuses),
               tintColor: `hsl(${status?.hue ?? "0"}, 80%, ${
-                typeof status?.hue === "number" ? "60%" : theme === "dark" ? "100%" : "0"
+                typeof status?.hue === "number" ? "60%" : appearance === "dark" ? "100%" : "0"
               })`,
             }}
           />
@@ -64,7 +97,7 @@ export default function DetailsTask({ taskId, mutateTask }: Props) {
               icon={{
                 source: getPriorityIcon(priority.selectValue.value),
                 tintColor: `hsl(${priority.selectValue.hue ?? "0"}, 80%, ${
-                  typeof priority.selectValue.hue === "number" ? "60%" : theme === "dark" ? "100%" : "0"
+                  typeof priority.selectValue.hue === "number" ? "60%" : appearance === "dark" ? "100%" : "0"
                 })`,
               }}
             />
@@ -80,8 +113,8 @@ export default function DetailsTask({ taskId, mutateTask }: Props) {
                   differenceInCalendarDays(new Date(dueDate.date), today) <= 0 && !task.completed
                     ? Color.Red
                     : differenceInCalendarDays(new Date(dueDate.date), today) <= 2 && !task.completed
-                    ? Color.Yellow
-                    : Color.PrimaryText,
+                      ? Color.Yellow
+                      : Color.PrimaryText,
               }}
             />
           ) : null}
@@ -97,14 +130,14 @@ export default function DetailsTask({ taskId, mutateTask }: Props) {
                     key={assignee.id}
                     text={`${assignee.firstname} ${assignee.lastname}`}
                     color={`hsl(${assignee?.hue ?? "0"}, 80%, ${
-                      typeof assignee?.hue === "number" ? "60%" : theme === "dark" ? "100%" : "0"
+                      typeof assignee?.hue === "number" ? "60%" : appearance === "dark" ? "100%" : "0"
                     })`}
                     icon={{
                       source: assignee?.pictureUrl ?? Icon.Person,
                       tintColor: assignee?.pictureUrl
                         ? undefined
                         : `hsl(${assignee?.hue ?? "0"}, 80%, ${
-                            typeof assignee?.hue === "number" ? "60%" : theme === "dark" ? "100%" : "0"
+                            typeof assignee?.hue === "number" ? "60%" : appearance === "dark" ? "100%" : "0"
                           })`,
                     }}
                   />
@@ -124,7 +157,7 @@ export default function DetailsTask({ taskId, mutateTask }: Props) {
                     text={list.name}
                     color={getTintColorFromHue(list?.appearance?.hue, ListColors)}
                     icon={{
-                      source: list.appearance?.iconUrl ?? "list-icons/list-light.svg",
+                      source: list.appearance?.iconUrl ?? "list-icons/list.svg",
                       tintColor: getTintColorFromHue(list?.appearance?.hue, ListColors),
                     }}
                   />
@@ -142,7 +175,7 @@ export default function DetailsTask({ taskId, mutateTask }: Props) {
               icon={{
                 source:
                   getListById(task?.parentTasks[0]?.listIds[0], lists, smartLists)?.appearance?.iconUrl ??
-                  "list-icons/list-light.svg",
+                  "list-icons/list.svg",
                 tintColor: getTintColorFromHue(task.lists?.[0]?.appearance?.hue, ListColors),
               }}
             />

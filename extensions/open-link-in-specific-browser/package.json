@@ -220,18 +220,54 @@
       ]
     }
   ],
+  "preferences": [
+    {
+      "name": "showBrowser",
+      "type": "checkbox",
+      "required": false,
+      "default": true,
+      "title": "Recommended Apps",
+      "label": "Browser",
+      "description": "Whether to show the browser in the recommended apps"
+    },
+    {
+      "name": "showEmail",
+      "type": "checkbox",
+      "required": false,
+      "default": false,
+      "label": "Email Client",
+      "description": "Whether to show the email client in the recommended apps"
+    },
+    {
+      "name": "showOther",
+      "type": "checkbox",
+      "required": false,
+      "default": false,
+      "label": "Other Apps",
+      "description": "Whether to show other apps in the recommended apps"
+    },
+    {
+      "name": "showAll",
+      "type": "checkbox",
+      "title": "All Apps",
+      "required": false,
+      "default": false,
+      "label": "All Apps",
+      "description": "Whether to show all apps"
+    }
+  ],
   "dependencies": {
-    "@raycast/api": "^1.41.1"
+    "@raycast/api": "^1.61.0"
   },
   "devDependencies": {
-    "@types/node": "~16.10.0",
-    "@types/react": "^17.0.28",
-    "@typescript-eslint/eslint-plugin": "^5.0.0",
-    "@typescript-eslint/parser": "^5.0.0",
-    "eslint": "^7.32.0",
-    "eslint-config-prettier": "^8.3.0",
-    "prettier": "^2.5.1",
-    "typescript": "^4.4.3"
+    "@types/node": "~20.8.10",
+    "@types/react": "^18.2.34",
+    "@typescript-eslint/eslint-plugin": "^6.9.1",
+    "@typescript-eslint/parser": "^6.9.1",
+    "eslint": "^8.52.0",
+    "eslint-config-prettier": "^9.0.0",
+    "prettier": "^2.8.8",
+    "typescript": "^5.2.2"
   },
   "scripts": {
     "build": "ray build -e dist",

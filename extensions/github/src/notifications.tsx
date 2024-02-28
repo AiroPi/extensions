@@ -4,10 +4,10 @@ import { useCachedPromise } from "@raycast/utils";
 import { partition } from "lodash";
 import { useState, useMemo } from "react";
 
+import { getGitHubClient } from "./api/githubClient";
 import NotificationListItem from "./components/NotificationListItem";
 import RepositoriesDropdown from "./components/RepositoryDropdown";
-import View from "./components/View";
-import { getGitHubClient } from "./helpers/withGithubClient";
+import { withGitHubClient } from "./helpers/withGithubClient";
 import { useViewer } from "./hooks/useViewer";
 
 export type NotificationsResponse = Endpoints["GET /notifications"]["response"];
@@ -60,7 +60,12 @@ function Notifications() {
       {readNotifications.length > 0 ? (
         <List.Section title="Read">
           {readNotifications.map((notification) => (
-            <NotificationListItem key={notification.id} notification={notification} mutateList={mutateList} />
+            <NotificationListItem
+              key={notification.id}
+              notification={notification}
+              userId={viewer?.id}
+              mutateList={mutateList}
+            />
           ))}
         </List.Section>
       ) : null}
@@ -70,10 +75,4 @@ function Notifications() {
   );
 }
 
-export default function Command() {
-  return (
-    <View>
-      <Notifications />
-    </View>
-  );
-}
+export default withGitHubClient(Notifications);

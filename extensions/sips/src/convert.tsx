@@ -1,7 +1,23 @@
-import { List, ActionPanel, showToast, Action, Toast } from "@raycast/api";
-import { execSync } from "child_process";
-import { getSelectedImages } from "./utils";
+/**
+ * @file convert.tsx
+ *
+ * @summary Raycast command to convert selected images between various formats.
+ * @author Stephen Kaplan <skaplanofficial@gmail.com>
+ *
+ * Created at     : 2023-07-06 14:53:25
+ * Last modified  : 2023-07-06 15:47:53
+ */
 
+import { Action, ActionPanel, getPreferenceValues, Icon, List, openCommandPreferences } from "@raycast/api";
+
+import convert from "./operations/convertOperation";
+import { getSelectedImages } from "./utilities/utils";
+import { ConvertPreferences, ExtensionPreferences } from "./utilities/preferences";
+import runOperation from "./operations/runOperation";
+
+/**
+ * All supported image formats for conversion.
+ */
 const FORMATS = [
   "ASTC",
   "BMP",
@@ -22,37 +38,31 @@ const FORMATS = [
   "PVR",
   "TGA",
   "TIFF",
+  "WEBP",
+  "SVG",
 ];
 
-const convert = async (desiredType: string) => {
-  const selectedImages = await getSelectedImages();
-
-  if (selectedImages.length === 0 || (selectedImages.length === 1 && selectedImages[0] === "")) {
-    await showToast({ title: "No images selected", style: Toast.Style.Failure });
-    return;
-  }
-
-  const pluralized = `image${selectedImages.length === 1 ? "" : "s"}`;
-  try {
-    selectedImages.forEach((item) => {
-      const pathComponents = item.split(".");
-      const newPath = pathComponents.slice(0, -1).join("") + "." + desiredType.toLowerCase();
-      execSync(`sips --setProperty format ${desiredType.toLowerCase()} "${item}" --out "${newPath}"`);
-    });
-    await showToast({ title: `Converted ${selectedImages.length.toString()} ${pluralized} to ${desiredType}` });
-  } catch (error) {
-    console.log(error);
-    await showToast({
-      title: `Failed to convert ${selectedImages.length.toString()} ${pluralized} to ${desiredType}`,
-      style: Toast.Style.Failure,
-    });
-  }
-};
-
 export default function Command() {
+  const preferences = getPreferenceValues<ConvertPreferences & ExtensionPreferences>();
+  const enabledFormats = FORMATS.filter((format) => preferences[`show${format}`]);
+
   return (
     <List searchBarPlaceholder="Search image transformations...">
-      {FORMATS.map((format) => {
+      <List.EmptyView
+        title="No Formats Enabled"
+        description="Enable formats in the command preferences (⌘⇧,)"
+        icon={Icon.Image}
+        actions={
+          <ActionPanel>
+            <Action
+              title="Open Command Preferences"
+              onAction={async () => await openCommandPreferences()}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "," }}
+            />
+          </ActionPanel>
+        }
+      />
+      {enabledFormats.map((format) => {
         return (
           <List.Item
             title={format}
@@ -61,8 +71,15 @@ export default function Command() {
               <ActionPanel>
                 <Action
                   title={`Convert to ${format}`}
-                  onAction={() => {
-                    convert(format);
+                  onAction={async () => {
+                    const selectedImages = await getSelectedImages();
+                    await runOperation({
+                      operation: () => convert(selectedImages, format),
+                      selectedImages,
+                      inProgressMessage: "Conversion in progress...",
+                      successMessage: "Converted",
+                      failureMessage: "Failed to convert",
+                    });
                   }}
                 />
               </ActionPanel>

@@ -1,6 +1,23 @@
 # GitHub Gist Changelog
 
-## [Optimize extension] - {PR_MERGE_DATE}
+## [Add Copy Raw Link action] - 2023-11-09
+
+- Add action to copy the raw link of the gist file
+
+## [Update] - 2023-07-26
+
+- Updated dependencies
+
+## [Update] - 2023-04-12
+
+- Updated dependencies
+- Enable syntax highlighting
+
+## [Update] - 2023-04-12
+
+- Updated dependencies
+
+## [Optimize extension] - 2022-09-30 
 
 - Optimize Search Gists command loading speed
 

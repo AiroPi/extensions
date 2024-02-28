@@ -1,7 +1,6 @@
-import { ActionPanel, List, Action, showToast, Toast } from "@raycast/api";
 import React from "react";
-import { runAppleScript } from "run-applescript";
-import { execSync } from "child_process";
+import { ActionPanel, List, Action, showToast, Toast, popToRoot } from "@raycast/api";
+import { runAppleScript } from "@raycast/utils";
 
 function applicationNameFromPath(path: string): string {
   /* Example:
@@ -11,44 +10,6 @@ function applicationNameFromPath(path: string): string {
   const pathParts = path.split("/");
   const appName = pathParts[pathParts.length - 1];
   return appName.replace(".app", "");
-}
-
-function applicationIconFromPath(path: string): string {
-  /* Example:
-   * '/Applications/Visual Studio Code.app' -> '/Applications/Visual Studio Code.app/Contents/Resources/{file name}.icns'
-   */
-
-  // read path/Contents/Info.plist and look for <key>CFBundleIconFile</key>
-
-  const infoPlist = `${path}/Contents/Info.plist`;
-  const stdout = execSync(
-    [
-      "plutil",
-      "-convert",
-      "json",
-      '"' + infoPlist + '"',
-      "-o",
-      // By using a dash ("-") for the -o parameter value the output
-      // will be printed in the stdout instead into a local file
-      "-",
-    ].join(" ")
-  ).toString();
-
-  const json = JSON.parse(stdout);
-  let iconFileName = json.CFBundleIconFile;
-
-  if (!iconFileName) {
-    // no icon found. fallback to empty string (no icon)
-    return "";
-  }
-
-  // if icon doesn't end with .icns, add it
-  if (!iconFileName.endsWith(".icns")) {
-    iconFileName = `${iconFileName}.icns`;
-  }
-
-  const iconPath = `${path}/Contents/Resources/${iconFileName}`;
-  return iconPath;
 }
 
 async function getRunningAppsPaths(): Promise<string[]> {
@@ -64,7 +25,7 @@ async function getRunningAppsPaths(): Promise<string[]> {
     return appPaths
   `);
 
-  return result.split(", ").map((appPath) => appPath.trim());
+  return result.split(", ").map((appPath: string) => appPath.trim());
 }
 
 function quitApp(app: string) {
@@ -115,12 +76,19 @@ function restartAppWithToast(app: string): boolean {
   }
 }
 
+function getQuickLinkForApp(appName: string, action: string): string {
+  const context = JSON.stringify({ appName, action });
+  const encodedContext = encodeURIComponent(context);
+  return `raycast://extensions/mackopes/quit-applications/index?context=${encodedContext}`;
+}
+
 interface AppListState {
   apps: {
     name: string;
-    iconPath: string;
+    path: string;
   }[];
   isLoading: boolean;
+  launchContext?: { appName: string; action: string /* quit | restart */ };
 }
 
 class AppList extends React.Component<Record<string, never>, AppListState> {
@@ -130,27 +98,34 @@ class AppList extends React.Component<Record<string, never>, AppListState> {
     this.state = {
       apps: [],
       isLoading: true,
+      launchContext: props.launchContext,
     };
   }
 
   componentDidMount() {
+    if (this.state.launchContext && this.state.launchContext.appName && this.state.launchContext.action) {
+      const { appName, action } = this.state.launchContext;
+
+      if (action === "quit") {
+        quitAppWithToast(appName);
+        popToRoot().then();
+        return;
+      }
+
+      if (action === "restart") {
+        restartAppWithToast(appName);
+        popToRoot().then();
+        return;
+      }
+    }
+
     getRunningAppsPaths().then((appCandidatePaths) => {
       // filter out all apps that do not end with .app
-      const appPaths = appCandidatePaths.filter((appPath) => appPath.endsWith(".app"));
+      const apps = appCandidatePaths
+        .filter((appPath) => appPath.endsWith(".app"))
+        .map((path) => ({ name: applicationNameFromPath(path), path }));
 
-      console.log(appPaths);
-
-      const appNames = appPaths.map((appPath) => applicationNameFromPath(appPath));
-      const appIcons = appPaths.map((appPath) => applicationIconFromPath(appPath));
-
-      const apps = appNames.map((appName, index) => {
-        return {
-          name: appName,
-          iconPath: appIcons[index],
-        };
-      });
-
-      this.setState({ apps: apps, isLoading: false });
+      this.setState({ apps, isLoading: false });
     });
   }
 
@@ -161,7 +136,7 @@ class AppList extends React.Component<Record<string, never>, AppListState> {
           <List.Item
             title={app.name}
             key={app.name}
-            icon={app.iconPath}
+            icon={{ fileIcon: app.path }}
             actions={
               <ActionPanel>
                 <Action
@@ -178,6 +153,14 @@ class AppList extends React.Component<Record<string, never>, AppListState> {
                   onAction={() => {
                     restartAppWithToast(app.name);
                   }}
+                />
+                <Action.CreateQuicklink
+                  title="Create Quit Quicklink"
+                  quicklink={{ link: getQuickLinkForApp(app.name, "quit"), name: `Quit ${app.name}` }}
+                />
+                <Action.CreateQuicklink
+                  title="Create Restart Quicklink"
+                  quicklink={{ link: getQuickLinkForApp(app.name, "restart"), name: `Restart ${app.name}` }}
                 />
               </ActionPanel>
             }

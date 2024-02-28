@@ -8,8 +8,10 @@
   "contributors": [
     "GastroGeek",
     "4very",
+    "theherk",
     "TobiasYin",
-    "yossizahn"
+    "yossizahn",
+    "eduwass"
   ],
   "license": "MIT",
   "commands": [
@@ -83,6 +85,14 @@
         {
           "value": "VSCodium",
           "title": "VSCodium"
+        },
+        {
+          "value": "VSCodium < 1.71",
+          "title": "VSCodium < 1.71"
+        },
+        {
+          "value": "Cursor",
+          "title": "Cursor"
         }
       ]
     }

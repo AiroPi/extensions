@@ -16,7 +16,7 @@ export function OpenLinkInGridLayout(props: {
   setRefresh: React.Dispatch<React.SetStateAction<number>>;
   loading: boolean;
 }) {
-  const { columns, itemInset } = getPreferenceValues<Preferences>();
+  const { columns, itemInset, showAll } = getPreferenceValues<Preferences>();
   const { buildInApps, customApps, otherApps, itemInput, setRefresh, loading } = props;
 
   return (
@@ -28,7 +28,7 @@ export function OpenLinkInGridLayout(props: {
     >
       <OpenLinkInEmptyView />
 
-      <Grid.Section title="Preferred" subtitle={itemInput.type + ": " + itemInput.content.substring(0, 90)}>
+      <Grid.Section title="Favorites">
         {customApps.map((browser, index) => {
           return (
             <OpenLinkAppGridItem
@@ -42,10 +42,7 @@ export function OpenLinkInGridLayout(props: {
           );
         })}
       </Grid.Section>
-      <Grid.Section
-        title="Recommended"
-        subtitle={customApps.length === 0 ? itemInput.type + ": " + itemInput.content.substring(0, 90) : ""}
-      >
+      <Grid.Section title="Recommended">
         {buildInApps.map((browser, index) => {
           return (
             <OpenLinkAppGridItem
@@ -59,20 +56,22 @@ export function OpenLinkInGridLayout(props: {
           );
         })}
       </Grid.Section>
-      <Grid.Section title="Other">
-        {otherApps.map((browser, index) => {
-          return (
-            <OpenLinkAppGridItem
-              key={browser.path}
-              isCustom={false}
-              itemInput={itemInput}
-              setRefresh={setRefresh}
-              index={index}
-              openLinkApplications={otherApps}
-            />
-          );
-        })}
-      </Grid.Section>
+      {showAll && (
+        <Grid.Section title="Other" subtitle={"Press ⌘+S to add app to Favorites"}>
+          {otherApps.map((browser, index) => {
+            return (
+              <OpenLinkAppGridItem
+                key={browser.path}
+                isCustom={false}
+                itemInput={itemInput}
+                setRefresh={setRefresh}
+                index={index}
+                openLinkApplications={otherApps}
+              />
+            );
+          })}
+        </Grid.Section>
+      )}
     </Grid>
   );
 }
